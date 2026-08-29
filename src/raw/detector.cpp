@@ -19,17 +19,17 @@
 // ================================
 // Pin and Buzzer Definitions - Xiao ESP32 S3
 // ================================
-#define BUZZER_PIN 3   // GPIO3 (D2) for buzzer - good PWM pin on Xiao ESP32 S3
+#define BUZZER_PIN 9   // GPIO9 for buzzer on ThinkNode M5
 #define BUZZER_FREQ 2000  // Frequency in Hz
 #define BUZZER_DUTY 127  // 50% duty cycle for good volume without excessive power draw
 #define BEEP_DURATION 200  // Duration of each beep in ms
 #define BEEP_PAUSE 50  // Pause between beeps in ms (faster sequence)
-#define LED_PIN 21   // GPIO21 for onboard LED (inverted logic)
+#include "board_m5.h"  // blue LED via PCA9557
 
 // ================================
 // NeoPixel Definitions - Xiao ESP32 S3
 // ================================
-#define NEOPIXEL_PIN 4   // GPIO4 (D3) for NeoPixel - confirmed safe pin on Xiao ESP32 S3
+#define NEOPIXEL_PIN 18   // M5 has no NeoPixel - unused GPIO (harmless no-op)
 #define NEOPIXEL_COUNT 1 // Number of NeoPixels (1 for single pixel)
 #define NEOPIXEL_BRIGHTNESS 50 // Brightness (0-255)
 #define NEOPIXEL_DETECTION_BRIGHTNESS 200 // Brightness during detection (0-255)
@@ -244,13 +244,13 @@ bool isSerialConnected() {
 // ================================
 void ledOn() {
     if (ledEnabled) {
-        digitalWrite(LED_PIN, LOW);  // LOW = LED ON for Xiao ESP32-S3
+        M5Board::led(true);  // LOW = LED ON for Xiao ESP32-S3
     }
 }
 
 void ledOff() {
     if (ledEnabled) {
-        digitalWrite(LED_PIN, HIGH); // HIGH = LED OFF for Xiao ESP32-S3
+        M5Board::led(false); // HIGH = LED OFF for Xiao ESP32-S3
     }
 }
 
@@ -264,8 +264,8 @@ void initializeBuzzer() {
     ledcAttachPin(BUZZER_PIN, 0);
     
     // Setup LED (inverted logic - HIGH = OFF for Xiao ESP32-S3)
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH);
+    M5Board::begin();
+    M5Board::led(false);
 }
 
 void digitalBeep(int duration) {
@@ -4036,14 +4036,14 @@ void setup() {
     // 1.5s during power-on clears the lock. Beeps while counting so the
     // hold is obviously registering; releasing early aborts.
     if (configLocked) {
-        pinMode(0, INPUT_PULLUP);
+        pinMode(M5_BOOT_PIN, INPUT_PULLUP);
         delay(50);
-        if (digitalRead(0) == LOW) {
+        if (digitalRead(M5_BOOT_PIN) == LOW) {
             Serial.println("BOOT held - keep holding 1.5s to clear config lock...");
             unsigned long t0 = millis();
             bool held = true;
             while (millis() - t0 < 1500) {
-                if (digitalRead(0) == HIGH) { held = false; break; }
+                if (digitalRead(M5_BOOT_PIN) == HIGH) { held = false; break; }
                 if ((millis() - t0) % 300 < 40) {
                     ledcSetup(0, 2000, 8);
                     ledcAttachPin(BUZZER_PIN, 0);

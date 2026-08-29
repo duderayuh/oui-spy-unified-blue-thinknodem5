@@ -24,12 +24,12 @@
 #define MIRROR_SERIAL      0   // GPIO43 is UART TX on this board
 #else
 // Seeed XIAO ESP32-S3
-#define BUZZER_PIN         3
+#define BUZZER_PIN         9
 #define USE_BUZZER         1
-#define LED_PIN            21
+#include "board_m5.h"  // blue LED via PCA9557
 #define USE_LED            1
 #define LED_ACTIVE_HIGH    0
-#define MIRROR_SERIAL      1
+#define MIRROR_SERIAL      0
 #define MIRROR_TX_PIN      43
 #endif
 
@@ -371,11 +371,7 @@ static inline void ledSet(bool on) {
   if (on) apa102SetColor(APA102_FLASH_R, APA102_FLASH_G, APA102_FLASH_B);
   else apa102SetColor(0, 0, 0);
 #else
-#if LED_ACTIVE_HIGH
-  digitalWrite(LED_PIN, on ? HIGH : LOW);
-#else
-  digitalWrite(LED_PIN, on ? LOW  : HIGH);
-#endif
+M5Board::led(on);
 #endif
 #endif
 }
@@ -1610,7 +1606,11 @@ void setup() {
   Serial.begin(115200);
   // Crucial for USB-optional operation: without this, Serial.write() will
   // block indefinitely on an ESP32-S3 USB-CDC port when no host is attached.
+  // USB-CDC only — HardwareSerial on UART0 (the ThinkNode M5's serial path)
+  // has no setTxTimeoutMs member, so skip it when CDC isn't enabled.
+#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
   Serial.setTxTimeoutMs(0);
+#endif
   delay(300);
 
 #ifdef BOARD_LILYGO_T_DONGLE_S3
@@ -1630,7 +1630,7 @@ void setup() {
 #if defined(USE_APA102_LED)
   apa102Init();
 #else
-  pinMode(LED_PIN, OUTPUT);
+  M5Board::begin();
   ledSet(false);
 #endif
 #endif

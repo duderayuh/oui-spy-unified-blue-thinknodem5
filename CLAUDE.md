@@ -24,15 +24,15 @@ Six-mode unified firmware for Seeed Studio XIAO ESP32-S3 with boot selector menu
 ## Build & Run
 
 ```bash
-pio run -e esp32s3
-pio run -e esp32s3 -t upload
+pio run -e thinknode_m5
+pio run -e thinknode_m5 -t upload
 pio device monitor -b 115200
 ```
 
 ## PlatformIO Config
 
-- **Board**: `seeed_xiao_esp32s3`
-- **Partition**: Custom (`partitions.csv`) — 6MB app, 2MB LittleFS
+- **Board**: `esp32-s3-devkitc-1` base, overridden to 4MB flash / no PSRAM (`qio_qspi`)
+- **Partition**: `partitions_4mb.csv` — ~1.875MB app + ~2MB spiffs (fits 4MB flash)
 - **BLE**: NimBLE-Arduino 1.4.0+
 - **Web**: AsyncWebServer 3.0.6+
 - **Filesystem**: LittleFS (web assets, config)
@@ -41,12 +41,13 @@ pio device monitor -b 115200
 
 ```
 -DCORE_DEBUG_LEVEL=0
--DARDUINO_USB_CDC_ON_BOOT=1
--DBOARD_HAS_PSRAM
--mfix-esp32-psram-cache-issue
 -DCONFIG_BT_NIMBLE_ENABLED=1
+-DBOARD_THINKNODE_M5
 -Isrc/raw
 ```
+
+No `-DBOARD_HAS_PSRAM`, no `-mfix-esp32-psram-cache-issue`, no
+`-DARDUINO_USB_CDC_ON_BOOT` — the M5 has no PSRAM and no native-USB serial.
 
 ## NVS Namespaces
 

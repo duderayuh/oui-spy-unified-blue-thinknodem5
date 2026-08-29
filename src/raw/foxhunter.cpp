@@ -8,10 +8,10 @@
 #include <esp_wifi.h>
 
 // Hardware configuration
-#define BUZZER_PIN 3
+#define BUZZER_PIN 9
 #define BUZZER_FREQ 2000
 #define BUZZER_DUTY 127
-#define LED_PIN 21
+#include "board_m5.h"  // blue LED via PCA9557
 
 // Network configuration
 const char* AP_SSID = "foxhunter";
@@ -79,13 +79,13 @@ int calculateBeepInterval(int rssi) {
 // LED control functions (inverted logic for Xiao ESP32-S3)
 void ledOn() {
     if (ledEnabled) {
-        digitalWrite(LED_PIN, LOW);  // LOW = LED ON for Xiao ESP32-S3
+        M5Board::led(true);  // LOW = LED ON for Xiao ESP32-S3
     }
 }
 
 void ledOff() {
     if (ledEnabled) {
-        digitalWrite(LED_PIN, HIGH); // HIGH = LED OFF for Xiao ESP32-S3
+        M5Board::led(false); // HIGH = LED OFF for Xiao ESP32-S3
     }
 }
 
@@ -956,8 +956,8 @@ void setup() {
     ledcAttachPin(BUZZER_PIN, 0);
     
     // Setup LED (inverted logic - HIGH = OFF for Xiao ESP32-S3)
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH);
+    M5Board::begin();
+    M5Board::led(false);
     
     zeldaSecretBeep(); // Zelda secret discovery jingle on boot
     

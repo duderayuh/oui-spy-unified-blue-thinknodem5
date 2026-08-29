@@ -35,8 +35,8 @@
 // ---------------------------------------------------------------------------
 // Hardware — matches sibling modes (active-low LED on GPIO21).
 // ---------------------------------------------------------------------------
-#define PCAP_BUZZER_PIN 3
-#define PCAP_LED_PIN    21
+#define PCAP_BUZZER_PIN 9
+#include "board_m5.h"  // blue LED via PCA9557
 
 static const ledc_channel_t PCAP_BUZZER_CH    = LEDC_CHANNEL_0;
 static const ledc_timer_t   PCAP_BUZZER_TIMER = LEDC_TIMER_0;
@@ -2642,7 +2642,7 @@ void led_task(void*) {
             if (now < on_until) on = true;
             else if ((now / 1000) % 3 == 0 && (now % 1000) < 60) on = true;
         }
-        digitalWrite(PCAP_LED_PIN, on ? LOW : HIGH);
+        M5Board::led(on);
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
@@ -2755,8 +2755,8 @@ void serial_pump() {
 // Mode entry points (wrapped by mode_pcap.cpp as pcap_ns_setup / pcap_ns_loop)
 // ---------------------------------------------------------------------------
 void setup() {
-    pinMode(PCAP_LED_PIN, OUTPUT);
-    digitalWrite(PCAP_LED_PIN, HIGH);   // LED off (inverted)
+    M5Board::begin();
+    M5Board::led(false);   // LED off (inverted)
 
     pcap_buzzer_setup();
 

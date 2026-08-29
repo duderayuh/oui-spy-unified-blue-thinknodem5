@@ -16,10 +16,10 @@
 #include <freertos/task.h>
 
 // Buzzer configuration
-#define BUZZER_PIN 3  // GPIO3 (D2) - PWM capable pin on Xiao ESP32 S3
+#define BUZZER_PIN 9  // GPIO9 - buzzer on ThinkNode M5
 
 // LED configuration
-#define LED_PIN 21    // GPIO21 - Built-in orange LED on Xiao ESP32 S3 (inverted logic)
+#include "board_m5.h"  // blue LED via PCA9557 (no plain-GPIO LED on M5)
 
 // Audio Configuration
 #define DETECT_FREQ 1000  // Detection alert - high pitch (faster beeps)
@@ -159,9 +159,9 @@ void buzzerTask(void *parameter) {
       Serial.println("DRONE DETECTED! Playing alert sequence");
       for (int i = 0; i < 3; i++) {
         if (ssBuzzerOn) tone(BUZZER_PIN, DETECT_FREQ, DETECT_BEEP_DURATION);
-        digitalWrite(LED_PIN, LOW);  // Turn on LED (inverted logic)
+        M5Board::led(true);  // Turn on LED (inverted logic)
         vTaskDelay(pdMS_TO_TICKS(150)); // LED on during beep
-        digitalWrite(LED_PIN, HIGH); // Turn off LED (inverted logic)
+        M5Board::led(false); // Turn off LED (inverted logic)
         vTaskDelay(pdMS_TO_TICKS(50)); // Short pause between beeps
       }
       Serial.println("Detection complete - drone identified!");
@@ -176,14 +176,14 @@ void buzzerTask(void *parameter) {
     if (do_heartbeat) {
       Serial.println("Heartbeat: Drone still in range");
       if (ssBuzzerOn) tone(BUZZER_PIN, HEARTBEAT_FREQ, HEARTBEAT_DURATION);
-      digitalWrite(LED_PIN, LOW);  // Turn on LED (inverted logic)
+      M5Board::led(true);  // Turn on LED (inverted logic)
       vTaskDelay(pdMS_TO_TICKS(100));
-      digitalWrite(LED_PIN, HIGH); // Turn off LED (inverted logic)
+      M5Board::led(false); // Turn off LED (inverted logic)
       vTaskDelay(pdMS_TO_TICKS(50));
       if (ssBuzzerOn) tone(BUZZER_PIN, HEARTBEAT_FREQ, HEARTBEAT_DURATION);
-      digitalWrite(LED_PIN, LOW);  // Turn on LED (inverted logic)
+      M5Board::led(true);  // Turn on LED (inverted logic)
       vTaskDelay(pdMS_TO_TICKS(100));
-      digitalWrite(LED_PIN, HIGH); // Turn off LED (inverted logic)
+      M5Board::led(false); // Turn off LED (inverted logic)
     }
     
     // Check for new beep triggers every 50ms
@@ -387,9 +387,9 @@ void playCloseEncounters() {
 
   for (int i = 0; i < 5; i++) {
     tone(BUZZER_PIN, notes[i].freq, notes[i].dur);
-    digitalWrite(LED_PIN, LOW);   // LED flash with each note
+    M5Board::led(true);   // LED flash with each note
     delay(notes[i].dur);
-    digitalWrite(LED_PIN, HIGH);
+    M5Board::led(false);
     noTone(BUZZER_PIN);
     if (notes[i].gap > 0) delay(notes[i].gap);
   }
@@ -398,8 +398,8 @@ void playCloseEncounters() {
 }
 
 void initializeLED() {
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH); // Turn off LED initially (inverted logic)
+  M5Board::begin();
+  M5Board::led(false); // Turn off LED initially (inverted logic)
   Serial.println("Orange LED initialized on GPIO21 (inverted logic)");
 }
 

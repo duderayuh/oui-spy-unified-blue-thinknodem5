@@ -17,12 +17,10 @@
 #include <Preferences.h>
 #include "modes.h"
 
-// Hardware pins (shared across all modes)
-#define BUZZER_PIN 3
-#define LED_PIN 21
-
-// Boot button (GPIO0) - held during boot to return to selector menu
-#define BOOT_BUTTON_PIN 0
+// Hardware pins (shared across all modes) — ThinkNode M5
+#include "board_m5.h"
+#define BUZZER_PIN M5_BUZZER_PIN        // GPIO 9
+#define BOOT_BUTTON_PIN M5_BOOT_PIN     // GPIO 21 (BUTTON1)
 #define BOOT_HOLD_TIME 1500  // ms - hold boot button this long to force selector
 
 static Preferences prefs;
@@ -203,12 +201,11 @@ static void selectorBeep() {
     playNote(1568, 400);  // G6 (hold)
     delay(100);
     
-    // LED flash sync
-    pinMode(LED_PIN, OUTPUT);
+    // LED flash sync (blue LED via PCA9557)
     for (int i = 0; i < 3; i++) {
-        digitalWrite(LED_PIN, LOW);   // On
+        M5Board::led(true);
         delay(50);
-        digitalWrite(LED_PIN, HIGH);  // Off
+        M5Board::led(false);
         delay(50);
     }
 }
@@ -463,7 +460,7 @@ static void startSelector() {
     // Visual indicator - breathe LED
     Serial.println("[SELECTOR] Setting up LED...");
     Serial.flush();
-    pinMode(LED_PIN, OUTPUT);
+    // (LED driven via M5Board; init happens in setup())
     
     Serial.println("[SELECTOR] Playing startup jingle...");
     Serial.flush();
@@ -495,8 +492,8 @@ void setup() {
     // Initialize shared hardware
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH);  // LED off (inverted logic on XIAO)
+    M5Board::begin();
+    M5Board::led(false);  // LED off
     
     // CRITICAL: Nuke ALL stored WiFi config from NVS.
     // The ESP32 persists AP SSID/password in flash and auto-restores it,
@@ -663,7 +660,7 @@ void loop() {
                 static bool ledState = false;
                 if (millis() - lastLed > 1000) {
                     ledState = !ledState;
-                    digitalWrite(LED_PIN, ledState ? LOW : HIGH);
+                    M5Board::led(ledState);
                     lastLed = millis();
                 }
             }

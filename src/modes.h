@@ -1,6 +1,13 @@
 #ifndef MODES_H
 #define MODES_H
 
+// Board abstraction (buzzer/button pins + PCA9557 LED driver). Included here —
+// at global scope — so the Wire1/TwoWire references inside board_m5.h resolve to
+// the Arduino framework's global objects, NOT to per-mode anonymous-namespace
+// copies (which would fail to link). Every mode wrapper and main.cpp includes
+// this header before pulling in its raw/*.cpp implementation.
+#include "board_m5.h"
+
 // Shared preamble used by every mode's exported setup() to reset the radio
 // state (WiFi.persistent(false) + WIFI_OFF + esp_wifi_restore). Prevents the
 // Arduino WiFi wrapper from writing per-mode SSIDs back to ESP32-native NVS,
