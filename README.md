@@ -1,8 +1,12 @@
 # OUI SPY
 
-Multi-mode surveillance detection and BLE intelligence firmware for the **Seeed Studio XIAO ESP32-S3**.
+Multi-mode surveillance detection and BLE intelligence firmware.
+
+> **Elecrow ThinkNode M5 port** — this fork also targets the **ThinkNode M5** (ESP32-S3-WROOM-1-N4). See **[THINKNODE_M5.md](THINKNODE_M5.md)** for board-specific install instructions, pin mapping, and hardware notes.
 
 One device. Six firmware modes. Select from a boot menu, reboot, and go.
+
+The original target is the **Seeed Studio XIAO ESP32-S3**; everything below describes that board unless noted.
 
 ---
 
