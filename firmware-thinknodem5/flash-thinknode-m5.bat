@@ -57,15 +57,13 @@ if errorlevel 1 (
     %PY% -m pip install --quiet esptool pyserial
 )
 
-REM ---- download firmware if not already present ----
-if not exist merged-flash.bin (
-    echo  Downloading firmware image (4 MB)...
-    curl.exe -L --fail -s -o merged-flash.bin "https://github.com/duderayuh/oui-spy-unified-blue-thinknodem5/raw/master/firmware-thinknodem5/merged-flash.bin"
-    if errorlevel 1 (
-        echo  [ERROR] Download failed. Check your internet connection.
-        pause
-        exit /b 1
-    )
+REM ---- always download the latest firmware image (overwrites any stale copy) ----
+echo  Downloading latest firmware image (4 MB)...
+curl.exe -L --fail -s -o merged-flash.bin "https://github.com/duderayuh/oui-spy-unified-blue-thinknodem5/raw/master/firmware-thinknodem5/merged-flash.bin"
+if errorlevel 1 (
+    echo  [ERROR] Download failed. Check your internet connection.
+    pause
+    exit /b 1
 )
 echo  [ok] Firmware ready
 
