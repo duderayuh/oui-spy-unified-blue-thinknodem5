@@ -11,7 +11,29 @@ Multi-mode surveillance detection and BLE intelligence firmware.
 
 One device. Six firmware modes. Select from a boot menu, reboot, and go.
 
-The original target is the **Seeed Studio XIAO ESP32-S3**; everything below describes that board unless noted.
+---
+
+```
+        +==============================================================+
+        |                                                              |
+        |    ***  EVERYTHING BELOW IS FOR THE ORIGINAL BOARD ONLY  *** |
+        |                                                              |
+        |              Seeed Studio XIAO ESP32-S3                      |
+        |              (the ORIGINAL colonelpanichacks target)         |
+        |                                                              |
+        |   --------------------------------------------------------   |
+        |                                                              |
+        |   DO NOT use the web flasher or flash.py instructions below  |
+        |   on a ThinkNode M5. They ship XIAO binaries and will NOT    |
+        |   work on the M5 (wrong pins, wrong board target).           |
+        |                                                              |
+        |   >>  THINKNODE M5 USERS  ->  go to THINKNODE_M5.md          |
+        |       (esptool.js web flasher + merged-flash.bin)            |
+        |                                                              |
+        +==============================================================+
+```
+
+The original target is the **Seeed Studio XIAO ESP32-S3**; the sections below (Web Flasher, Quick Connect, flashing via `flash.py`, pin references) all describe **that board only**.
 
 ---
 
