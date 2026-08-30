@@ -157,6 +157,27 @@ static const char* target_ouis[] = {
 };
 static const size_t OUI_COUNT = sizeof(target_ouis) / sizeof(target_ouis[0]);
 
+// Human-readable device type for each OUI above — INDEX-ALIGNED with
+// target_ouis[]. This is what the e-ink screen shows ("what am I looking
+// at"), instead of a bare "OUI MATCH". Most community prefixes are Flock ALPR
+// cameras; the last three are individually attributed. Keep each string short
+// (<= ~15 chars) so it fits the size-2 e-ink line without clipping. To refine a
+// specific prefix later, just edit its entry here.
+static const char* target_oui_labels[] = {
+  "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
+  "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
+  "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
+  "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
+  "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
+  "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
+  "Flock ALPR Cam",
+  "Flock Cam DeFlk",   // 82:6b:f2 — DeFlockJoplin
+  "Flock Safety",      // b4:1e:52 — Flock official OUI
+  "Axon Body Cam"      // 00:25:df — Axon / TASER
+};
+static_assert(sizeof(target_oui_labels) / sizeof(target_oui_labels[0]) == OUI_COUNT,
+              "target_oui_labels must stay index-aligned with target_ouis");
+
 // Pre-compiled byte table — populated once in setup(), never touched again.
 // Keeps matchOuiRaw entirely in IRAM with no flash-resident function calls.
 static uint8_t oui_bytes[OUI_COUNT][3];
@@ -516,6 +537,20 @@ static bool IRAM_ATTR matchOuiRaw(const uint8_t* mac) {
         mac[2] == oui_bytes[i][2]) return true;
   }
   return false;
+}
+
+// Loop-context (NOT ISR): return the human-readable device type for a MAC whose
+// OUI is in our table, or nullptr if none matches. Used to label the e-ink
+// screen with what kind of device was detected. Plain equality scan — the MAC
+// has already matched by the time we call this, so no locally-administered
+// skip is needed (that would drop 82:6b:f2, which has bit 1 set).
+static const char* ouiDeviceLabel(const uint8_t* mac) {
+  for (size_t i = 0; i < OUI_COUNT; i++) {
+    if (mac[0] == oui_bytes[i][0] &&
+        mac[1] == oui_bytes[i][1] &&
+        mac[2] == oui_bytes[i][2]) return target_oui_labels[i];
+  }
+  return nullptr;
 }
 
 static char* strcasestr_local(const char* haystack, const char* needle) {
@@ -1612,17 +1647,37 @@ static void drainAlertQueue() {
     dongleDisplayShowAlert(methodLine, macStr, e.rssi, e.channel, ALERT_COOLDOWN_MS);
 
     // Onboard e-ink: show what just happened so a beep is self-explanatory.
-    // Title + tier meaning + MAC + (SSID if any) + RSSI/channel.
-    char ssidLine[40];
-    if (e.type == ALERT_SSID && e.ssid[0]) {
-      snprintf(ssidLine, sizeof(ssidLine), "SSID: %s", e.ssid);
-    } else {
-      ssidLine[0] = '\0';
+    // Big line = WHAT the device is (device type), so the operator knows what
+    // they're looking for — not a bare "OUI MATCH". Detail block carries the
+    // confidence (tier meaning), MAC, and RSSI/channel.
+    const char* deviceType = ouiDeviceLabel(e.mac);
+    if (!deviceType) {
+      // SSID hits (and any non-OUI path) have no OUI to look up — name the
+      // device from the SSID keyword that matched.
+      if (e.type == ALERT_SSID && e.ssid[0] && strcasestr_local(e.ssid, "axon"))
+        deviceType = "Axon (SSID)";
+      else if (e.type == ALERT_SSID)
+        deviceType = "Flock AP (SSID)";
+      else
+        deviceType = "Flock device";
     }
-    char rssiLine[32];
-    snprintf(rssiLine, sizeof(rssiLine), "RSSI %d  CH %u", e.rssi, e.channel);
-    M5Display::showText("FLOCK-YOU", tierMeaning(tier), macStr,
-                        ssidLine[0] ? ssidLine : nullptr, rssiLine);
+
+    // Three size-1 detail rows. Confidence (tier meaning) always leads.
+    const char* confLine = tierMeaning(tier);   // e.g. "CONFIRMED CAMERA"
+    char rfLine[24];
+    snprintf(rfLine, sizeof(rfLine), "RSSI %d  CH %u", e.rssi, e.channel);
+
+    if (e.type == ALERT_SSID && e.ssid[0]) {
+      // SSID hit: confidence / SSID / MAC + RSSI (MAC still worth showing).
+      char ssidLine[40];
+      snprintf(ssidLine, sizeof(ssidLine), "SSID: %s", e.ssid);
+      char macRf[48];
+      snprintf(macRf, sizeof(macRf), "%s  %s", macStr, rfLine);
+      M5Display::showText("FLOCK-YOU", deviceType, confLine, ssidLine, macRf);
+    } else {
+      // OUI hit: confidence / MAC / RSSI+channel.
+      M5Display::showText("FLOCK-YOU", deviceType, confLine, macStr, rfLine);
+    }
     fyLastDisplayAt = millis();
     fyDisplayReverted = false;
 
