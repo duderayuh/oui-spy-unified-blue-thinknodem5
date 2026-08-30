@@ -697,6 +697,14 @@ static void checkGpsStatus() {
         Serial.println("[GPS] FIX ACQUIRED");
     }
 
+    // Flock-You (mode 3) owns the e-ink for its live detection text; don't
+    // clobber it with the icon+GPS-badge overlay. (GPS data still flows into
+    // flock-you's JSON via the shared singleton — this is only about the panel.)
+    if (currentMode == 3) {
+        gpsLastState = st;
+        return;
+    }
+
     gpsRedraw(st);
     gpsLastState = st;
 }

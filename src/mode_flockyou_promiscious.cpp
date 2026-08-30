@@ -29,6 +29,7 @@
 #include <Preferences.h>
 #include "modes.h"
 #include "gps_m5.h"
+#include "display_m5.h"
 
 // Rename setup/loop so they don't collide with the unified main.cpp's
 // Arduino entry points (and the other modes' wrapped setup/loop).

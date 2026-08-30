@@ -1012,6 +1012,19 @@ static const char* tierLabel(uint8_t tier) {
   }
 }
 
+// Human-readable "what this beep means" for the e-ink screen. Short enough to
+// fit at text size 2 (<= ~19 chars) so it renders on one line.
+static const char* tierMeaning(uint8_t tier) {
+  switch (tier) {
+    case TIER_IE_SIG: return "CONFIRMED CAMERA";
+    case TIER_PROBE:  return "PROBABLE CAMERA";
+    case TIER_OUI:    return "OUI MATCH";
+    case TIER_ECHO:   return "AP ECHO (2nd-hand)";
+    case TIER_SSID:   return "SSID MATCH";
+    default:          return "DETECTION";
+  }
+}
+
 static void fyLoadBeepMask() {
   if (!fyPrefs.begin(FY_NVS_NS, /*readOnly=*/true)) {
     fyBeepMask = BEEP_MASK_DEFAULT;
@@ -1579,6 +1592,19 @@ static void drainAlertQueue() {
     char methodLine[40];
     snprintf(methodLine, sizeof(methodLine), "wifi_%s", method);
     dongleDisplayShowAlert(methodLine, macStr, e.rssi, e.channel, ALERT_COOLDOWN_MS);
+
+    // Onboard e-ink: show what just happened so a beep is self-explanatory.
+    // Title + tier meaning + MAC + (SSID if any) + RSSI/channel.
+    char ssidLine[40];
+    if (e.type == ALERT_SSID && e.ssid[0]) {
+      snprintf(ssidLine, sizeof(ssidLine), "SSID: %s", e.ssid);
+    } else {
+      ssidLine[0] = '\0';
+    }
+    char rssiLine[32];
+    snprintf(rssiLine, sizeof(rssiLine), "RSSI %d  CH %u", e.rssi, e.channel);
+    M5Display::showText("FLOCK-YOU", tierMeaning(tier), macStr,
+                        ssidLine[0] ? ssidLine : nullptr, rssiLine);
 
 #if STOP_ON_OUI_HIT
     if (e.type != ALERT_SSID) stopSniffing("OUI hit");
