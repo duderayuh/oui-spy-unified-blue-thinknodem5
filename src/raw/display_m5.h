@@ -127,4 +127,19 @@ inline void showText(const char* title, const char* meaning,
     display()->hibernate();
 }
 
+// Idle-icon memory: main.cpp stores the active mode's icon at boot so a mode
+// that draws live status (flock-you) can revert to it after a quiet period —
+// without pulling the 5 KB PROGMEM array into every translation unit.
+inline const uint8_t*& idleIcon() {
+    static const uint8_t* p = nullptr;
+    return p;
+}
+
+inline void setIdleIcon(const uint8_t* bmp) { idleIcon() = bmp; }
+
+// Redraw the stored idle icon (the mode's normal face). No-op if unset.
+inline void revertToIdle() {
+    if (idleIcon()) showIcon(idleIcon());
+}
+
 } // namespace M5Display

@@ -324,6 +324,22 @@ static unsigned long fyLastHeartbeatAt = 0;
 // borrows that tier's voice, so muting a tier mutes its heartbeat too.
 static uint8_t       fyLastTargetTier  = 0;
 
+// When the e-ink last showed a detection, and whether it has already reverted
+// to the idle icon. After SCREEN_REVERT_MS of quiet, redraw the flock icon.
+static unsigned long fyLastDisplayAt = 0;
+static bool          fyDisplayReverted = true;
+#define SCREEN_REVERT_MS 30000
+
+// Revert the e-ink from the last detection text back to the flock icon once
+// SCREEN_REVERT_MS has elapsed with no new detection. Runs from loop().
+static void displayRevertTick() {
+  if (fyDisplayReverted) return;
+  if (millis() - fyLastDisplayAt >= SCREEN_REVERT_MS) {
+    M5Display::revertToIdle();
+    fyDisplayReverted = true;
+  }
+}
+
 // ============================================================
 // 802.11 HEADER
 // ============================================================
@@ -1605,6 +1621,8 @@ static void drainAlertQueue() {
     snprintf(rssiLine, sizeof(rssiLine), "RSSI %d  CH %u", e.rssi, e.channel);
     M5Display::showText("FLOCK-YOU", tierMeaning(tier), macStr,
                         ssidLine[0] ? ssidLine : nullptr, rssiLine);
+    fyLastDisplayAt = millis();
+    fyDisplayReverted = false;
 
 #if STOP_ON_OUI_HIT
     if (e.type != ALERT_SSID) stopSniffing("OUI hit");
@@ -1740,6 +1758,7 @@ void loop() {
   updateChannelMode();
   pollHostCommands();  // dashboard → device (per-tier beep mute)
   drainAlertQueue();   // Serial.printf happens here, not in callback
+  displayRevertTick(); // revert e-ink to flock icon after quiet period
   autosaveTick();      // periodic SPIFFS write if dirty
   heartbeatTick();     // audible beep-pair while a target is still in range
   ledTick();           // turn off LED after LED_FLASH_MS

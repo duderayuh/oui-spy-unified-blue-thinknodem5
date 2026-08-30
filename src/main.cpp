@@ -556,6 +556,7 @@ void setup() {
     M5Display::begin();
     if (currentMode >= 1 && currentMode <= 6) {
         M5Display::showIcon(MODE_ICONS[currentMode - 1]);
+        M5Display::setIdleIcon(MODE_ICONS[currentMode - 1]);
     }
     
     // Route to selected mode
