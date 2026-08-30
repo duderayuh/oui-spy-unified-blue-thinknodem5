@@ -9,7 +9,6 @@
 #include <NimBLEAdvertisedDevice.h>
 #include <esp_log.h>
 #include <esp_wifi.h>
-#include <esp_wifi_types.h>
 #include <nvs_flash.h>
 #include <vector>
 #include <algorithm>
@@ -3752,90 +3751,6 @@ void startConfigMode() {
 }
 
 // ================================
-// Shared match recorder (BLE + WiFi)
-// ================================
-// One code path handles a confirmed match regardless of radio: dedupe against
-// the devices vector, fire the right beep, and stage the JSON line for loop().
-// The BLE callback and the WiFi sniffer drain both call this.
-static void recordMatchFound(const String& mac, int rssi,
-                             const String& matchedDescription,
-                             FilterType matchedType, const String& matchedIdentifier) {
-    unsigned long currentMillis = millis();
-    bool known = false;
-    for (auto& dev : devices) {
-        if (dev.macAddress == mac) {
-            known = true;
-            if (dev.inCooldown && currentMillis < dev.cooldownUntil) return;
-            if (dev.inCooldown && currentMillis >= dev.cooldownUntil) dev.inCooldown = false;
-
-            unsigned long timeSinceLastSeen = currentMillis - dev.lastSeen;
-            if (timeSinceLastSeen >= 30000) {
-                detectedMAC = mac; detectedRSSI = rssi; matchedFilter = matchedDescription;
-                matchType = "RE-30s"; newMatchFound = true;
-                threeBeeps();
-                dev.inCooldown = true; dev.cooldownUntil = currentMillis + 10000;
-            } else if (timeSinceLastSeen >= 3000) {
-                detectedMAC = mac; detectedRSSI = rssi; matchedFilter = matchedDescription;
-                matchType = "RE-3s"; newMatchFound = true;
-                twoBeeps();
-                dev.inCooldown = true; dev.cooldownUntil = currentMillis + 3000;
-            }
-            dev.lastSeen = currentMillis;
-            break;
-        }
-    }
-
-    if (!known) {
-        DeviceInfo newDev;
-        newDev.macAddress = mac;
-        newDev.rssi = rssi;
-        newDev.firstSeen = currentMillis;
-        newDev.lastSeen = currentMillis;
-        newDev.inCooldown = false;
-        newDev.cooldownUntil = 0;
-        newDev.filterDescription = matchedDescription;
-        newDev.matchedFilter = newDev.filterDescription.c_str();
-        newDev.matchedType = matchedType;
-        newDev.matchedIdentifier = matchedIdentifier;
-        devices.push_back(newDev);
-
-        detectedMAC = mac; detectedRSSI = rssi; matchedFilter = matchedDescription;
-        matchType = "NEW"; newMatchFound = true;
-        threeBeeps();
-
-        auto& dev = devices.back();
-        dev.inCooldown = true;
-        dev.cooldownUntil = currentMillis + 3000;
-    }
-}
-
-// MAC-only match for WiFi frames. WiFi has no manufacturer CID / service UUID
-// / name payloads, so only the two MAC-based filter types can hit.
-static bool matchesWifiMAC(const String& mac, FilterType& outType,
-                           String& outIdent, String& outDesc) {
-    String norm = mac; normalizeMACAddress(norm);
-    for (const TargetFilter& f : targetFilters) {
-        if (f.type != FT_MAC_PREFIX && f.type != FT_FULL_MAC) continue;
-        String id = f.identifier; normalizeMACAddress(id);
-        bool hit = (f.type == FT_MAC_PREFIX) ? norm.startsWith(id) : norm.equals(id);
-        if (hit) {
-            outType = f.type; outIdent = f.identifier; outDesc = f.description;
-            return true;
-        }
-    }
-    return false;
-}
-
-// Format a raw 6-byte MAC as uppercase "AA:BB:CC:DD:EE:FF" (matches the BLE
-// address string format so dedupe in devices[] is consistent across radios).
-static String macBytesToString(const uint8_t m[6]) {
-    char buf[18];
-    snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X",
-             m[0], m[1], m[2], m[3], m[4], m[5]);
-    return String(buf);
-}
-
-// ================================
 // BLE Advertised Device Callback Class
 // ================================
 class MyAdvertisedDeviceCallbacks: public NimBLEAdvertisedDeviceCallbacks {
@@ -3864,135 +3779,106 @@ class MyAdvertisedDeviceCallbacks: public NimBLEAdvertisedDeviceCallbacks {
         }
 
         if (matchFound) {
-            // Feed the BLE session subsystem BEFORE the shared beep/flash path
-            // so a first-sight JSON line lands on the wire promptly.
+            // Feed the BLE session subsystem BEFORE the existing beep/flash
+            // path so a first-sight JSON line lands on the wire promptly.
             // bleNoteDetection dedups internally so re-hits don't spam.
             bleNoteDetection(advertisedDevice, mac, rssi, matchedDescription);
 
-            // Recover the specific filter class + raw identifier for the
-            // dashboard match-type badge, then record via the shared path.
-            FilterType mt = FT_MAC_PREFIX;
-            String mid;
-            if (metaComposite) {
-                mt = FT_META_COMPOSITE;
-                mid = "0x0D53+0xFD5F";
-            } else {
-                resolveMatchedFilterMeta(advertisedDevice, mac, mt, mid);
+            bool known = false;
+            for (auto& dev : devices) {
+                if (dev.macAddress == mac) {
+                    known = true;
+
+                    if (dev.inCooldown && currentMillis < dev.cooldownUntil) {
+                        return;
+                    }
+
+                    if (dev.inCooldown && currentMillis >= dev.cooldownUntil) {
+                        dev.inCooldown = false;
+                    }
+
+                    unsigned long timeSinceLastSeen = currentMillis - dev.lastSeen;
+
+                    if (timeSinceLastSeen >= 30000) {
+                        // Store data for main loop to process
+                        detectedMAC = mac;
+                        detectedRSSI = rssi;
+                        matchedFilter = matchedDescription;
+                        matchType = "RE-30s";
+                        newMatchFound = true;
+                        
+                        threeBeeps();
+                        dev.inCooldown = true;
+                        dev.cooldownUntil = currentMillis + 10000;
+                    } else if (timeSinceLastSeen >= 3000) {
+                        // Store data for main loop to process
+                        detectedMAC = mac;
+                        detectedRSSI = rssi;
+                        matchedFilter = matchedDescription;
+                        matchType = "RE-3s";
+                        newMatchFound = true;
+                        
+                        twoBeeps();
+                        dev.inCooldown = true;
+                        dev.cooldownUntil = currentMillis + 3000;
+                    }
+
+                    dev.lastSeen = currentMillis;
+                    break;
+                }
             }
 
-            recordMatchFound(mac, rssi, matchedDescription, mt, mid);
+            if (!known) {
+                DeviceInfo newDev;
+                newDev.macAddress = mac;
+                newDev.rssi = rssi;
+                newDev.firstSeen = currentMillis;
+                newDev.lastSeen = currentMillis;
+                newDev.inCooldown = false;
+                newDev.cooldownUntil = 0;
+                newDev.matchedFilter = matchedDescription.c_str();
+                newDev.filterDescription = matchedDescription;
+                if (metaComposite) {
+                    newDev.matchedType       = FT_META_COMPOSITE;
+                    newDev.matchedIdentifier = "0x0D53+0xFD5F";
+                } else {
+                    // Second pass to recover the specific filter class + raw
+                    // identifier for the dashboard match-type badge. Fills a
+                    // sane default if the resolver can't reproduce the hit.
+                    FilterType mt = FT_MAC_PREFIX;
+                    String mid;
+                    if (resolveMatchedFilterMeta(advertisedDevice, mac, mt, mid)) {
+                        newDev.matchedType = mt;
+                        newDev.matchedIdentifier = mid;
+                    }
+                }
+                devices.push_back(newDev);
+
+                // Store data for main loop to process
+                detectedMAC = mac;
+                detectedRSSI = rssi;
+                matchedFilter = matchedDescription;
+                matchType = "NEW";
+                newMatchFound = true;
+                
+                threeBeeps();
+                
+                auto& dev = devices.back();
+                dev.inCooldown = true;
+                dev.cooldownUntil = currentMillis + 3000;
+            }
         }
     }
 };
 
-// ================================
-// WiFi OUI detection — promiscuous sniffer (Detector previously BLE-only)
-// ================================
-// The Detector's OUI database lists WiFi-only devices (Ring, Flock B4:1E:52,
-// DJI, Parrot, Skydio) whose MACs never appear on BLE. This adds a 2.4 GHz
-// promiscuous sniffer that runs alongside BLE: frames' addr2 (transmitter) and
-// addr1 (receiver) are queued, then matched against MAC-prefix/full-MAC filters
-// in loop() via the same recordMatchFound() path as BLE.
-#define WIFI_QUEUE_SIZE 128
-#define WIFI_RSSI_MIN   -95
-#define WIFI_DWELL_MS   250   // channel dwell before hopping (matches flock-you)
-
-// Minimal 802.11 MAC header (the SDK doesn't export this type by name; flock-you
-// defines its own packed layout — same here).
-typedef struct __attribute__((packed)) {
-    uint16_t frame_ctrl;
-    uint16_t duration;
-    uint8_t  addr1[6];
-    uint8_t  addr2[6];
-    uint8_t  addr3[6];
-    uint16_t seq_ctrl;
-} wifi_ieee80211_mac_hdr_t;
-
-typedef struct {
-    uint8_t mac[6];
-    int8_t  rssi;
-} WifiHit;
-
-static WifiHit        wifiQueue[WIFI_QUEUE_SIZE];
-static volatile int   wifiQueueHead = 0;   // written by callback
-static volatile int   wifiQueueTail = 0;   // written by loop()
-static portMUX_TYPE   wifiQueueMux = portMUX_INITIALIZER_UNLOCKED;
-
-static uint8_t        wifiCurrentChannel = 1;
-static unsigned long  wifiLastHop = 0;
-
-// Promiscuous RX callback (WiFi driver task). IRAM-safe: no heap, no Serial,
-// no String — just copy the two useful MACs into the ring buffer.
-static void IRAM_ATTR wifiSnifferCb(void* buf, wifi_promiscuous_pkt_type_t type) {
-    (void)type;
-    wifi_promiscuous_pkt_t* pkt = (wifi_promiscuous_pkt_t*)buf;
-    if (!pkt || pkt->rx_ctrl.sig_len < (int)sizeof(wifi_ieee80211_mac_hdr_t)) return;
-
-    wifi_ieee80211_mac_hdr_t* hdr = (wifi_ieee80211_mac_hdr_t*)pkt->payload;
-    int8_t rssi = pkt->rx_ctrl.rssi;
-    if (rssi < WIFI_RSSI_MIN) return;
-
-    // Enqueue addr2 (transmitter) and addr1 (receiver, skip broadcast/multicast).
-    portENTER_CRITICAL_ISR(&wifiQueueMux);
-    const uint8_t* addrs[2] = { hdr->addr2, hdr->addr1 };
-    for (int i = 0; i < 2; i++) {
-        if (i == 1 && (addrs[1][0] & 0x01)) continue;  // addr1 multicast/broadcast
-        int next = (wifiQueueHead + 1) % WIFI_QUEUE_SIZE;
-        if (next == wifiQueueTail) break;  // full — drop oldest semantics via head stop
-        memcpy(wifiQueue[wifiQueueHead].mac, addrs[i], 6);
-        wifiQueue[wifiQueueHead].rssi = rssi;
-        wifiQueueHead = next;
-    }
-    portEXIT_CRITICAL_ISR(&wifiQueueMux);
-}
-
-// Drain the WiFi queue and record any MAC that matches the MAC-based filters.
-// Runs from loop() (safe context for Serial/String/vector).
-static void wifiDrainQueue() {
-    while (true) {
-        WifiHit hit;
-        bool got = false;
-        portENTER_CRITICAL(&wifiQueueMux);
-        if (wifiQueueTail != wifiQueueHead) {
-            hit = wifiQueue[wifiQueueTail];
-            wifiQueueTail = (wifiQueueTail + 1) % WIFI_QUEUE_SIZE;
-            got = true;
-        }
-        portEXIT_CRITICAL(&wifiQueueMux);
-        if (!got) break;
-
-        String mac = macBytesToString(hit.mac);
-        FilterType ft; String ident, desc;
-        if (matchesWifiMAC(mac, ft, ident, desc)) {
-            recordMatchFound(mac, hit.rssi, desc, ft, ident);
-        }
-    }
-}
-
-// Channel hop across the 2.4 GHz band (1..11). Called from loop().
-static void wifiChannelHop() {
-    if (millis() - wifiLastHop < WIFI_DWELL_MS) return;
-    wifiLastHop = millis();
-    wifiCurrentChannel = (wifiCurrentChannel % 11) + 1;
-    esp_wifi_set_channel(wifiCurrentChannel, WIFI_SECOND_CHAN_NONE);
-}
-
 void startScanningMode() {
     currentMode = SCANNING_MODE;
     
-    // Stop web server, captive portal DNS, and the AP.
+    // Stop web server, captive portal DNS, and WiFi
     detectorDNS.stop();
     server.end();
     WiFi.softAPdisconnect(true);
-
-    // Bring the radio up in promiscuous mode for WiFi OUI detection (instead of
-    // the old WIFI_OFF) so WiFi-only OUIs in the database can actually match.
-    WiFi.mode(WIFI_STA);
-    delay(50);
-    esp_wifi_set_promiscuous_rx_cb(&wifiSnifferCb);
-    esp_wifi_set_promiscuous(true);
-    esp_wifi_set_channel(wifiCurrentChannel, WIFI_SECOND_CHAN_NONE);
-    wifiLastHop = millis();
+    WiFi.mode(WIFI_OFF);
     
     if (isSerialConnected()) {
         Serial.println("\n=== STARTING SCANNING MODE ===");
@@ -4311,10 +4197,6 @@ void loop() {
             newMatchFound = false;
         }
         
-        // WiFi OUI detection: channel hop + drain the promiscuous queue.
-        wifiChannelHop();
-        wifiDrainQueue();
-
         // Restart BLE scan every 3 seconds
         if (currentMillis - lastScanTime >= 3000) {
             pBLEScan->stop();
