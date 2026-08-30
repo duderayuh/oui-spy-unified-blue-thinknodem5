@@ -39,7 +39,15 @@ namespace M5GPS {
 
 enum State : uint8_t { OFF = 0, ACQUIRING = 1, LOCKED = 2 };
 
-static TinyGPSPlus gps;
+// Single shared parser instance across ALL translation units. A namespace-scope
+// `static TinyGPSPlus` here would give every TU its own (empty, never-pumped)
+// copy — main.cpp pumps one copy, flock-you's TU would read a different one and
+// always report "no fix". A function-local static in an inline function has
+// external linkage and is the ONE instance everywhere (Meyers singleton).
+inline TinyGPSPlus& gpsInstance() {
+    static TinyGPSPlus gps;
+    return gps;
+}
 
 inline void begin() {
     pinMode(M5_GPS_SWITCH, INPUT_PULLUP);
@@ -52,6 +60,7 @@ inline void begin() {
 
 // Feed any pending NMEA bytes into the parser. Non-blocking.
 inline void pump() {
+    TinyGPSPlus& gps = gpsInstance();
     while (Serial2.available() > 0) {
         gps.encode(Serial2.read());
     }
@@ -60,14 +69,19 @@ inline void pump() {
 // Current GPS state given the switch + fix status.
 inline State state() {
     if (!M5_GPS_SWITCH_ON()) return OFF;
+    TinyGPSPlus& gps = gpsInstance();
     bool recent = (millis() - gps.location.age()) < M5_GPS_STALE_MS;
     if (gps.location.isValid() && recent) return LOCKED;
     return ACQUIRING;
 }
 
-inline double latitude()  { return gps.location.lat(); }
-inline double longitude() { return gps.location.lng(); }
-inline uint8_t satellites() { return gps.satellites.value(); }
+inline double latitude()  { return gpsInstance().location.lat(); }
+inline double longitude() { return gpsInstance().location.lng(); }
+inline uint8_t satellites() { return gpsInstance().satellites.value(); }
+// Horizontal dilution of precision (dimensionless). 0.0 when not yet valid.
+inline double hdop() {
+    return gpsInstance().hdop.isValid() ? gpsInstance().hdop.hdop() : 0.0;
+}
 
 } // namespace M5GPS
 

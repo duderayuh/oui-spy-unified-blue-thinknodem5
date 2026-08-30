@@ -942,6 +942,21 @@ static void emitDetectionJSON(const char* mac, const char* method, uint8_t tier,
          &mbytes[0], &mbytes[1], &mbytes[2], &mbytes[3], &mbytes[4], &mbytes[5]);
   ouiFromMac(mbytes, oui, sizeof(oui));
 
+  // Onboard L76K GPS stamp. Emit a nested "gps" object so each detection line
+  // carries its own lat/lon/accuracy (Flask reads gps.latitude etc.). When the
+  // GPS switch is off or there's no fix yet, lat/lon/accuracy are null.
+  char gpsJson[128];
+  if (M5GPS::state() == M5GPS::LOCKED) {
+    // Rough horizontal accuracy in metres from HDOP (typical L1 C/A ~5 m/HDOP).
+    double acc = M5GPS::hdop() * 5.0;
+    snprintf(gpsJson, sizeof(gpsJson),
+             "{\"latitude\":%.6f,\"longitude\":%.6f,\"accuracy\":%.1f,\"satellites\":%u}",
+             M5GPS::latitude(), M5GPS::longitude(), acc, M5GPS::satellites());
+  } else {
+    snprintf(gpsJson, sizeof(gpsJson),
+             "{\"latitude\":null,\"longitude\":null,\"accuracy\":null,\"satellites\":0}");
+  }
+
   dualPrintf(
       "{\"event\":\"detection\","
       "\"detection_method\":\"wifi_%s\","
@@ -953,9 +968,10 @@ static void emitDetectionJSON(const char* mac, const char* method, uint8_t tier,
       "\"rssi\":%d,"
       "\"channel\":%u,"
       "\"frequency\":%u,"
+      "\"gps\":%s,"
       "\"ssid\":\"%s\"}\n",
       method, (unsigned)tier, mac, oui, rssi,
-      (unsigned)ch, (unsigned)channelFreqMhz(ch), ssidEsc);
+      (unsigned)ch, (unsigned)channelFreqMhz(ch), gpsJson, ssidEsc);
 }
 
 // ============================================================
