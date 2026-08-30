@@ -118,7 +118,7 @@ static const size_t  fullHopChannelCount = sizeof(fullHopChannels) / sizeof(full
 // audible. Runtime-settable over serial by the Flask dashboard, persisted to
 // NVS so it survives a power cycle.
 #define BEEP_MASK_DEFAULT 0x1F   // 0b11111 — all five tiers on
-static const char* target_ssid_keywords[] = { "flock" };
+static const char* target_ssid_keywords[] = { "flock", "axon" };
 static const size_t SSID_KEYWORD_COUNT = sizeof(target_ssid_keywords) / sizeof(target_ssid_keywords[0]);
 
 #define STOP_ON_SSID_HIT 0
@@ -151,7 +151,9 @@ static const char* target_ouis[] = {
   "70:08:94", "58:8e:81", "ec:1b:bd", "3c:71:bf", "58:00:e3",
   "90:35:ea", "5c:93:a2", "64:6e:69", "48:27:ea", "a4:cf:12",
   "14:b5:cd",
-  "82:6b:f2"  // contributed by DeFlockJoplin
+  "82:6b:f2",  // contributed by DeFlockJoplin
+  "b4:1e:52",  // Flock Safety official OUI (MA-L, registered 2024)
+  "00:25:df"   // Axon Enterprise (TASER International) — body cams on WiFi+BLE
 };
 static const size_t OUI_COUNT = sizeof(target_ouis) / sizeof(target_ouis[0]);
 
