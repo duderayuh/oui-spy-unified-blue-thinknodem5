@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "modes.h"
+#include "gps_m5.h"
 
 // Rename setup/loop so they don't collide with the Arduino entry points in
 // main.cpp or the other modes' wrapped setup/loop.

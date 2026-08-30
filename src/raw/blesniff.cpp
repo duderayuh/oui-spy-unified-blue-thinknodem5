@@ -2613,6 +2613,20 @@ bool init() {
     server.on("/api/session/pause",  HTTP_POST, handle_session_pause);
     server.on("/api/session/resume", HTTP_POST, handle_session_resume);
     server.on("/api/session/stop",   HTTP_POST, handle_session_stop);
+    // Receiver GPS status (onboard L76K). Live lat/lon when the switch is on
+    // and a fix is locked, else null. Polled by the dashboard for a position.
+    server.on("/api/gps", HTTP_GET, [](AsyncWebServerRequest* req){
+        char buf[160];
+        if (M5GPS::state() == M5GPS::LOCKED) {
+            snprintf(buf, sizeof(buf),
+                "{\"fix\":1,\"latitude\":%.6f,\"longitude\":%.6f,\"accuracy\":%.1f,\"satellites\":%u}",
+                M5GPS::latitude(), M5GPS::longitude(), M5GPS::hdop() * 5.0, M5GPS::satellites());
+        } else {
+            snprintf(buf, sizeof(buf),
+                "{\"fix\":0,\"latitude\":null,\"longitude\":null,\"accuracy\":null,\"satellites\":0}");
+        }
+        req->send(200, "application/json", buf);
+    });
 
     server.onNotFound([](AsyncWebServerRequest* req){ req->send(404, "text/plain", "not found"); });
 

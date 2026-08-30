@@ -196,11 +196,25 @@ void send_json_fast(const id_data *UAV) {
   snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x",
            UAV->mac[0], UAV->mac[1], UAV->mac[2],
            UAV->mac[3], UAV->mac[4], UAV->mac[5]);
-  char json_msg[256];
+  // Our receiver position from the onboard L76K (null when no fix / switch off).
+  char rx_gps[128];
+  if (M5GPS::state() == M5GPS::LOCKED) {
+    snprintf(rx_gps, sizeof(rx_gps),
+             "\"receiver_lat\":%.6f,\"receiver_long\":%.6f,\"receiver_accuracy\":%.1f,",
+             M5GPS::latitude(), M5GPS::longitude(), M5GPS::hdop() * 5.0);
+  } else {
+    snprintf(rx_gps, sizeof(rx_gps),
+             "\"receiver_lat\":null,\"receiver_long\":null,\"receiver_accuracy\":null,");
+  }
+  char json_msg[320];
   snprintf(json_msg, sizeof(json_msg),
-    "{\"mac\":\"%s\",\"rssi\":%d,\"drone_lat\":%.6f,\"drone_long\":%.6f,\"drone_altitude\":%d,\"pilot_lat\":%.6f,\"pilot_long\":%.6f,\"basic_id\":\"%s\"}",
+    "{\"mac\":\"%s\",\"rssi\":%d,"
+    "\"drone_lat\":%.6f,\"drone_long\":%.6f,\"drone_altitude\":%d,"
+    "\"pilot_lat\":%.6f,\"pilot_long\":%.6f,"
+    "%s"
+    "\"basic_id\":\"%s\"}",
     mac_str, UAV->rssi, UAV->lat_d, UAV->long_d, UAV->altitude_msl,
-    UAV->base_lat_d, UAV->base_long_d, UAV->uav_id);
+    UAV->base_lat_d, UAV->base_long_d, rx_gps, UAV->uav_id);
   Serial.println(json_msg);
 }
 
