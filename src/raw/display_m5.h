@@ -54,4 +54,21 @@ inline void showIcon(const uint8_t* bitmap) {
     display->hibernate();
 }
 
+// Draw the mode icon plus an optional GPS badge (40x40) in the bottom-right
+// corner. badge is the badge bitmap; showBadge controls whether it's drawn.
+// Used for the live GPS-status overlay (OFF=hidden, ACQUIRING=blink, LOCKED=solid).
+inline void showIconWithGps(const uint8_t* bitmap, const uint8_t* badge, bool showBadge) {
+    if (!display || !bitmap) return;
+    display->setFullWindow();
+    display->firstPage();
+    do {
+        display->fillScreen(GxEPD_WHITE);
+        display->drawBitmap(0, 0, bitmap, 200, 200, GxEPD_BLACK, GxEPD_WHITE);
+        if (showBadge && badge) {
+            display->drawBitmap(156, 156, badge, 40, 40, GxEPD_BLACK, GxEPD_WHITE);
+        }
+    } while (display->nextPage());
+    display->hibernate();
+}
+
 } // namespace M5Display

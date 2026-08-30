@@ -49,17 +49,27 @@ inline void _writeReg(uint8_t reg, uint8_t val) {
 }
 
 // Initialize Wire1 + the PCA9557. Idempotent — safe to call from more than one
-// place. Reproduces Meshtastic's known-good peripheral power state.
+// place. Powers on the peripheral rail AND the backlight rail (PCA_EINK_EN,
+// pin 5 — Meshtastic comments this as "really just backlight power"). The
+// rotary knob is a mechanical power/brightness switch; our only job is to keep
+// its power rail HIGH so the knob actually controls it. Also powers the LED
+// rail (PCA_LED_ENABLE, pin 2) so the status LEDs work on battery, not just VBUS.
 inline void begin() {
     Wire1.begin(PCA9557_SDA, PCA9557_SCL);
     _writeReg(PCA9557_REG_CONFIG, 0x00);   // all used pins -> outputs
-    _writeReg(PCA9557_REG_OUTPUT, (1 << PCA_POWER_EN));  // peripherals on, LEDs off
+    uint8_t out = (1 << PCA_POWER_EN)      // peripherals (eink+GPS+LoRa+sensor)
+                | (1 << PCA_LED_ENABLE)    // LED power supply
+                | (1 << PCA_EINK_EN);      // backlight power (rotary knob)
+    _writeReg(PCA9557_REG_OUTPUT, out);
 }
 
 // Blue "notification" LED. HIGH = on. Reconstructs the whole output register so
-// the peripheral-power bit is never clobbered regardless of which TU calls it.
+// the peripheral-power + backlight bits are never clobbered regardless of which
+// TU calls it.
 inline void led(bool on) {
-    uint8_t out = (1 << PCA_POWER_EN);     // keep peripherals powered
+    uint8_t out = (1 << PCA_POWER_EN)      // keep peripherals powered
+                | (1 << PCA_LED_ENABLE)    // keep LED rail powered
+                | (1 << PCA_EINK_EN);      // keep backlight powered
     if (on) out |= (1 << PCA_LED_BLUE);
     _writeReg(PCA9557_REG_OUTPUT, out);
 }
