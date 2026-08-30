@@ -2,6 +2,11 @@
 
 Multi-mode surveillance detection and BLE intelligence firmware.
 
+> ### ⚠️ DISCLAIMER — USE AT YOUR OWN RISK
+> This firmware is provided **"AS IS"**, with **no warranty of any kind** (express or implied). By flashing or using it you **assume all risk**; the authors and contributors are **not liable for any damage, loss, or cost** arising from its use — including damage to your hardware or other equipment, bricked devices, data loss, or unintended radio behaviour.
+>
+> Some modes perform **promiscuous Wi-Fi/BLE sniffing, packet capture, and passive surveillance detection**. Use them **only where authorized and lawful**. You are solely responsible for complying with all applicable laws.
+
 > **Elecrow ThinkNode M5 port** — this fork also targets the **ThinkNode M5** (ESP32-S3-WROOM-1-N4). See **[THINKNODE_M5.md](THINKNODE_M5.md)** for board-specific install instructions, pin mapping, and hardware notes.
 
 One device. Six firmware modes. Select from a boot menu, reboot, and go.
