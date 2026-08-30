@@ -654,14 +654,12 @@ static void checkBootButtonLoop() {
 // ============================================================================
 // Draws the mode icon with a GPS badge in the corner:
 //   OFF       -> badge hidden (plain icon)
-//   ACQUIRING -> badge blinks (toggle every ~1.2s)
+//   ACQUIRING -> badge solid
 //   LOCKED    -> badge solid + one "beep-boop" on the transition
-// The e-ink is bistable and slow, so we only redraw on state/blink transitions.
+// The e-ink is bistable and slow, so we ONLY redraw on state transitions —
+// never on a timer (blinking = constant full-screen refresh = obnoxious).
 // ============================================================================
 static M5GPS::State gpsLastState = M5GPS::OFF;
-static bool gpsBadgeShown = false;
-static unsigned long gpsLastBlink = 0;
-static unsigned long gpsLastDraw = 0;
 
 static void gpsBeepBoop() {
     // Two quick ascending notes ("beep-boop")
@@ -680,9 +678,8 @@ static void gpsBeepBoop() {
 
 static void gpsRedraw(M5GPS::State st) {
     if (currentMode < 1 || currentMode > 6) return;
-    bool show = (st == M5GPS::LOCKED) ? true : gpsBadgeShown;
+    bool show = (st != M5GPS::OFF);  // solid badge whenever GPS is on
     M5Display::showIconWithGps(MODE_ICONS[currentMode - 1], ICON_GPS, show);
-    gpsLastDraw = millis();
 }
 
 static void checkGpsStatus() {
@@ -691,32 +688,16 @@ static void checkGpsStatus() {
     M5GPS::pump();
     M5GPS::State st = M5GPS::state();
 
-    // Lock transition -> beep-boop once, then draw solid.
-    if (st == M5GPS::LOCKED && gpsLastState != M5GPS::LOCKED) {
+    // Only redraw on an actual state change (OFF <-> ACQUIRING <-> LOCKED).
+    if (st == gpsLastState) return;
+
+    // Lock transition -> beep-boop once.
+    if (st == M5GPS::LOCKED) {
         gpsBeepBoop();
-        gpsBadgeShown = true;
-        gpsRedraw(st);
-        gpsLastState = st;
         Serial.println("[GPS] FIX ACQUIRED");
-        return;
     }
 
-    if (st == M5GPS::ACQUIRING) {
-        // Blink the badge while acquiring.
-        if (millis() - gpsLastBlink >= 1200) {
-            gpsLastBlink = millis();
-            gpsBadgeShown = !gpsBadgeShown;
-            gpsRedraw(st);
-        }
-        gpsLastState = st;
-        return;
-    }
-
-    // OFF (or back to OFF from a previous state) -> hide badge, redraw once.
-    if (st == M5GPS::OFF && gpsLastState != M5GPS::OFF) {
-        gpsBadgeShown = false;
-        gpsRedraw(st);
-    }
+    gpsRedraw(st);
     gpsLastState = st;
 }
 
