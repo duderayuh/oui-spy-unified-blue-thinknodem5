@@ -16,6 +16,8 @@
 #include <DNSServer.h>
 #include <Preferences.h>
 #include "modes.h"
+#include "display_m5.h"
+#include "icons_m5.h"
 
 // Hardware pins (shared across all modes) — ThinkNode M5
 #include "board_m5.h"
@@ -547,6 +549,12 @@ void setup() {
     Serial.printf("[OUI-SPY] FINAL BOOT MODE: %d\n", currentMode);
     Serial.println("========================================");
     Serial.flush();
+    
+    // Draw the mode icon on the e-ink screen (bistable — shows until next mode).
+    M5Display::begin();
+    if (currentMode >= 1 && currentMode <= 6) {
+        M5Display::showIcon(MODE_ICONS[currentMode - 1]);
+    }
     
     // Route to selected mode
     Serial.println("\n[OUI-SPY] ========== ROUTING TO MODE ==========");
