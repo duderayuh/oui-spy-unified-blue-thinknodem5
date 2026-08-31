@@ -7,7 +7,7 @@ Multi-mode surveillance detection and BLE intelligence firmware.
 >
 > Some modes perform **promiscuous Wi-Fi/BLE sniffing, packet capture, and passive surveillance detection**. Use them **only where authorized and lawful**. You are solely responsible for complying with all applicable laws.
 
-> **Elecrow ThinkNode M5 port** — this fork also targets the **ThinkNode M5** (ESP32-S3-WROOM-1-N4). See **[THINKNODE_M5.md](THINKNODE_M5.md)** for board-specific install instructions, pin mapping, and hardware notes.
+> **Elecrow ThinkNode M5 port** — this fork also targets the **ThinkNode M5** (ESP32-S3R8, 8 MB octal PSRAM). See **[THINKNODE_M5.md](THINKNODE_M5.md)** for board-specific install instructions, pin mapping, and hardware notes.
 
 One device. Six firmware modes. Select from a boot menu, reboot, and go.
 
@@ -112,13 +112,13 @@ RSSI-based proximity tracker for hunting down a specific BLE device. Lock onto a
 
 ### Mode 3: Flock-You — Promiscuous WiFi Edition
 
-Passive 2.4 GHz promiscuous-mode detector for Flock Safety surveillance infrastructure. No AP, no transmit — the radio stays dedicated to sniffing while the device hops channels 1 / 6 / 11 at 350 ms dwell. Detections beep, flash, persist to SPIFFS with a CRC envelope, and stream over USB-CDC for live ingestion by the Flask dashboard at [colonelpanichacks/flock-you](https://github.com/colonelpanichacks/flock-you).
+Passive 2.4 GHz promiscuous-mode detector for Flock Safety surveillance infrastructure. No AP, no transmit — the radio stays dedicated to sniffing while the device hops channels 1 / 6 / 11 at 250 ms dwell. Detections beep, flash, persist to SPIFFS with a CRC envelope, and stream over USB-CDC for live ingestion by the Flask dashboard at [colonelpanichacks/flock-you](https://github.com/colonelpanichacks/flock-you).
 
 This is a port of the `promiscious` branch of `flock-you` — see that repo for the full research write-up and the Flask side.
 
 **Detection methods (WiFi only):**
 
-- **addr2 OUI match** — transmitter-side match against the 39-OUI Flock Safety list (29 from @NitekryDPaul's original promiscuous-mode set, 10 from his April 2026 additions — two of the original 12 April adds, `94:2a:6f` and `f4:e2:c6`, were demoted as Ubiquiti false positives per his June 2026 update). All work of **OrdoOuroborous / [@NitekryDPaul](https://github.com/nitekry)**.
+- **addr2 OUI match** — transmitter-side match against the 32-prefix Flock Safety list (31 from @NitekryDPaul's 2026-07-16 revision + `82:6b:f2` from DeFlockJoplin; earlier drive-test demotions like `f8:a2:d6`, `94:2a:6f`, and `f4:e2:c6` were pruned as false positives). All work of **OrdoOuroborous / [@NitekryDPaul](https://github.com/nitekry)**.
 - **addr1 OUI match** — the receiver-side technique: catches Flock STAs that appear only as the destination of probe responses or data frames during their burst-sleep windows. Mandatory multicast + locally-administered guards before the match. @NitekryDPaul's discovery.
 - **Wildcard probe signature** — Probe Request (type=0 subtype=4) + zero-length SSID IE + known-OUI addr2. The DeFlockJoplin high-precision signature (Joplin drive-test: 11/12 cameras caught with 2 false positives). Suppresses the broad addr2 alert on the same frame to avoid double-counting.
 

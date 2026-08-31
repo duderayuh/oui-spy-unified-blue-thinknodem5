@@ -1,14 +1,16 @@
 # OUI Spy Unified Blue – Multi-Mode BLE/WiFi Surveillance Detection Firmware
 
-Six-mode unified firmware for Seeed Studio XIAO ESP32-S3 with boot selector menu. Detects surveillance hardware, drones, and BLE tracking devices.
+Six-mode unified firmware with boot selector menu. Detects surveillance hardware, drones, and BLE tracking devices. This fork targets the **Elecrow ThinkNode M5** (ESP32-S3R8).
 
 ## Hardware
 
-- **Board**: Seeed Studio XIAO ESP32-S3
-- **Buzzer**: GPIO 3 (PWM)
-- **LED**: GPIO 21 (inverted logic — HIGH = OFF)
-- **Boot Button**: GPIO 0 (hold 1.5–2s to enter selector)
-- **GPS** (Flock-You mode): GPIO 43 TX, GPIO 44 RX
+- **Board**: Elecrow ThinkNode M5 — ESP32-S3R8 (8 MB octal PSRAM), 4 MB flash
+- **Buzzer**: GPIO 9 (active, PWM-capable)
+- **Boot Button**: GPIO 21 (BUTTON1, hold 1.5–2s to enter selector)
+- **Status LED**: blue "notification" LED on PCA9557 I2C expander (0x18) — `Wire1` SDA=48, SCL=47
+- **Serial console**: UART0 (GPIO 43/44) via CH340 USB-UART bridge — *not* native USB-CDC
+- **GPS** (Flock-You mode): onboard L76K (power switch on GPIO 10)
+- **E-ink**: 1.54" 200×200, driven by this firmware
 
 ## Modes
 
@@ -17,7 +19,7 @@ Six-mode unified firmware for Seeed Studio XIAO ESP32-S3 with boot selector menu
 | Boot Selector | `src/main.cpp` | Mode selection menu via serial/web |
 | Detector | `src/raw/detector.cpp` | OUI-based WiFi surveillance detection |
 | Foxhunter | `src/raw/foxhunter.cpp` | RSSI proximity tracker for specific BLE targets |
-| Flock-You | `src/raw/flockyou.cpp` | Surveillance detection with GPS logging |
+| Flock-You | `src/raw/flockyou_promiscious.cpp` | Flock Cam detection with GPS logging |
 | Sky Spy | `src/raw/skyspy.cpp` | Drone Remote ID detection (BLE + WiFi) |
 | BLE Sniff | `src/raw/blesniff.cpp` | Passive BLE advertising capture (Wireshark-ready) |
 
@@ -31,8 +33,9 @@ pio device monitor -b 115200
 
 ## PlatformIO Config
 
-- **Board**: `esp32-s3-devkitc-1` base, overridden to 4MB flash / no PSRAM (`qio_qspi`)
-- **Partition**: `partitions_4mb.csv` — ~1.875MB app + ~2MB spiffs (fits 4MB flash)
+- **Board**: `esp32-s3-devkitc-1` base; flash 4 MB; **8 MB octal PSRAM** (`qio_opi`)
+- **Flash mode**: `dio` — **QIO boot-loops on this board** (octal PSRAM). Do not change back to QIO.
+- **Partition**: `partitions_4mb.csv` — ~1.875 MB app + ~2 MB spiffs (fits 4 MB flash)
 - **BLE**: NimBLE-Arduino 1.4.0+
 - **Web**: AsyncWebServer 3.0.6+
 - **Filesystem**: LittleFS (web assets, config)
@@ -43,11 +46,13 @@ pio device monitor -b 115200
 -DCORE_DEBUG_LEVEL=0
 -DCONFIG_BT_NIMBLE_ENABLED=1
 -DBOARD_THINKNODE_M5
+-DBOARD_HAS_PSRAM
 -Isrc/raw
 ```
 
-No `-DBOARD_HAS_PSRAM`, no `-mfix-esp32-psram-cache-issue`, no
-`-DARDUINO_USB_CDC_ON_BOOT` — the M5 has no PSRAM and no native-USB serial.
+No `-DARDUINO_USB_CDC_ON_BOOT` — the M5's native-USB pins (GPIO 19/20) are wired to the GPS
+module; the serial console is UART0. The M5 **does** have PSRAM (8 MB octal), so
+`-DBOARD_HAS_PSRAM` is set. `-mfix-esp32-psram-cache-issue` is *not* used.
 
 ## NVS Namespaces
 
@@ -76,13 +81,11 @@ Don't reuse these in mode code.
 
 ## Gotchas
 
-1. **LED inverted**: `digitalWrite(21, HIGH)` = OFF, `LOW` = ON
-2. **Boot sound**: Zelda "Secret Discovered" jingle on startup
-3. **Buzzer frequencies**: 1000 Hz (low alert), 2000 Hz (general), 3000 Hz (high alert) — avoid <20 Hz
+1. **Status LED is on the PCA9557 expander**, not a plain GPIO — use `M5Board::led()` from `board_m5.h` (which reconstructs the full output register every write; don't cache state in a static).
+2. **Flash mode is DIO**, not QIO — QIO boot-loops the octal-PSRAM M5.
+3. **Boot sound**: Zelda "Secret Discovered" jingle on startup
 4. **Flock-You memory**: Max 200 unique detections, oldest overwritten after that — export regularly
 5. **Sky Spy dual capture**: Both BLE (UUID 0xFAFF) and WiFi action frames — channel swap window may miss some
-6. **GPIO conflicts**: Don't reassign GPIO 0, 3, 21, 43, 44
-7. **AsyncWebServer + NVS**: NVS writes are synchronous — can cause brief freezes in HTTP handlers
-8. **PSRAM cache fix**: `-mfix-esp32-psram-cache-issue` build flag is critical
-9. **Mode persistence**: Selected mode saved to NVS, survives reboot
-10. **Flash utility**: `flash.py` for automated flashing
+6. **AsyncWebServer + NVS**: NVS writes are synchronous — can cause brief freezes in HTTP handlers
+7. **Mode persistence**: Selected mode saved to NVS, survives reboot
+8. **Flash utility**: `flash.py` for automated flashing (XIAO only — do not use on the M5; see `THINKNODE_M5.md`)
