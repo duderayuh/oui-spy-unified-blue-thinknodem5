@@ -151,14 +151,15 @@ static const char* target_ouis[] = {
   "70:08:94", "58:8e:81", "ec:1b:bd", "3c:71:bf", "58:00:e3",
   "90:35:ea", "5c:93:a2", "64:6e:69", "48:27:ea", "a4:cf:12",
   "14:b5:cd",
-  "82:6b:f2"  // contributed by DeFlockJoplin
+  "82:6b:f2",  // contributed by DeFlockJoplin
+  "b4:1e:52"   // Flock Safety official OUI (MA-L, registered 2024) — real cameras
 };
 static const size_t OUI_COUNT = sizeof(target_ouis) / sizeof(target_ouis[0]);
 
 // Human-readable device type for each OUI above — INDEX-ALIGNED with
 // target_ouis[]. This is what the e-ink screen shows ("what am I looking
 // at"), instead of a bare "OUI MATCH". Most community prefixes are Flock ALPR
-// cameras; the last entry is individually attributed. Keep each string short
+// cameras; the last two are individually attributed. Keep each string short
 // (<= ~15 chars) so it fits the size-2 e-ink line without clipping. To refine a
 // specific prefix later, just edit its entry here.
 static const char* target_oui_labels[] = {
@@ -169,7 +170,8 @@ static const char* target_oui_labels[] = {
   "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
   "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
   "Flock ALPR Cam",
-  "Flock Cam DeFlk"   // 82:6b:f2 — DeFlockJoplin
+  "Flock Cam DeFlk",   // 82:6b:f2 — DeFlockJoplin
+  "Flock Safety"       // b4:1e:52 — Flock official OUI
 };
 static_assert(sizeof(target_oui_labels) / sizeof(target_oui_labels[0]) == OUI_COUNT,
               "target_oui_labels must stay index-aligned with target_ouis");
