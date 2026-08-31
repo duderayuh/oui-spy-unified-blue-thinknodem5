@@ -284,6 +284,7 @@ static size_t   customChannelIndex = 0;
 static size_t   fullHopIndex = 0;
 static unsigned long lastHop = 0;
 static unsigned long lastHeartbeat = 0;
+static uint32_t hopCount = 0;   // total channel hops since boot — proves the radio is cycling
 static volatile bool sniffingStopped = false;
 
 // Dedupe table (small circular, avoids single-slot eviction bug).
@@ -642,13 +643,14 @@ static void updateChannelMode() {
   #endif
   esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE);
   lastHop = millis();
+  hopCount++;
 #endif
 }
 
 static void printHeartbeat() {
   if (millis() - lastHeartbeat >= HEARTBEAT_MS) {
-    dualPrintf("[flockyou] scanning (ch=%u mode=%s det=%d)\n",
-                  currentChannel, channelModeName(), fyDetCount);
+    dualPrintf("[flockyou] scanning (ch=%u mode=%s det=%d hops=%u)\n",
+                  currentChannel, channelModeName(), fyDetCount, hopCount);
     lastHeartbeat = millis();
     if (!dongleDisplayInAlert(millis())) {
       dongleDisplayShowIdle(currentChannel, fyDetCount);
