@@ -118,7 +118,7 @@ static const size_t  fullHopChannelCount = sizeof(fullHopChannels) / sizeof(full
 // audible. Runtime-settable over serial by the Flask dashboard, persisted to
 // NVS so it survives a power cycle.
 #define BEEP_MASK_DEFAULT 0x1F   // 0b11111 — all five tiers on
-static const char* target_ssid_keywords[] = { "flock", "axon" };
+static const char* target_ssid_keywords[] = { "flock" };
 static const size_t SSID_KEYWORD_COUNT = sizeof(target_ssid_keywords) / sizeof(target_ssid_keywords[0]);
 
 #define STOP_ON_SSID_HIT 0
@@ -151,16 +151,14 @@ static const char* target_ouis[] = {
   "70:08:94", "58:8e:81", "ec:1b:bd", "3c:71:bf", "58:00:e3",
   "90:35:ea", "5c:93:a2", "64:6e:69", "48:27:ea", "a4:cf:12",
   "14:b5:cd",
-  "82:6b:f2",  // contributed by DeFlockJoplin
-  "b4:1e:52",  // Flock Safety official OUI (MA-L, registered 2024)
-  "00:25:df"   // Axon Enterprise (TASER International) — body cams on WiFi+BLE
+  "82:6b:f2"  // contributed by DeFlockJoplin
 };
 static const size_t OUI_COUNT = sizeof(target_ouis) / sizeof(target_ouis[0]);
 
 // Human-readable device type for each OUI above — INDEX-ALIGNED with
 // target_ouis[]. This is what the e-ink screen shows ("what am I looking
 // at"), instead of a bare "OUI MATCH". Most community prefixes are Flock ALPR
-// cameras; the last three are individually attributed. Keep each string short
+// cameras; the last entry is individually attributed. Keep each string short
 // (<= ~15 chars) so it fits the size-2 e-ink line without clipping. To refine a
 // specific prefix later, just edit its entry here.
 static const char* target_oui_labels[] = {
@@ -171,9 +169,7 @@ static const char* target_oui_labels[] = {
   "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
   "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam", "Flock ALPR Cam",
   "Flock ALPR Cam",
-  "Flock Cam DeFlk",   // 82:6b:f2 — DeFlockJoplin
-  "Flock Safety",      // b4:1e:52 — Flock official OUI
-  "Axon Body Cam"      // 00:25:df — Axon / TASER
+  "Flock Cam DeFlk"   // 82:6b:f2 — DeFlockJoplin
 };
 static_assert(sizeof(target_oui_labels) / sizeof(target_oui_labels[0]) == OUI_COUNT,
               "target_oui_labels must stay index-aligned with target_ouis");
@@ -1654,9 +1650,7 @@ static void drainAlertQueue() {
     if (!deviceType) {
       // SSID hits (and any non-OUI path) have no OUI to look up — name the
       // device from the SSID keyword that matched.
-      if (e.type == ALERT_SSID && e.ssid[0] && strcasestr_local(e.ssid, "axon"))
-        deviceType = "Axon (SSID)";
-      else if (e.type == ALERT_SSID)
+      if (e.type == ALERT_SSID)
         deviceType = "Flock AP (SSID)";
       else
         deviceType = "Flock device";
